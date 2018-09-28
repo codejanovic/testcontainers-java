@@ -51,6 +51,10 @@ public class TestcontainersConfiguration {
         return (String) properties.getOrDefault("ryuk.container.image", "quay.io/testcontainers/ryuk:0.2.2");
     }
 
+    public Integer getRyukPort() {
+        return (Integer) properties.getOrDefault("ryuk.container.port", 8080);
+    }
+
     public String getSSHdImage() {
         return (String) properties.getOrDefault("sshd.container.image", "quay.io/testcontainers/sshd@sha256:18aa929c653284189fc9cefa45b731021857b6047a0a1757e909f958f258f088");
     }
@@ -59,8 +63,8 @@ public class TestcontainersConfiguration {
         return Integer.parseInt((String) properties.getOrDefault("ryuk.container.timeout", "30"));
     }
 
-    public Optional<String> getRyukNetwork() {
-        return Optional.ofNullable((String) properties.getOrDefault("ryuk.container.network", null));
+    public Optional<String> getDockerNetwork() {
+        return Optional.ofNullable((String) properties.getOrDefault("docker.network", null));
     }
 
     public String getKafkaImage() {

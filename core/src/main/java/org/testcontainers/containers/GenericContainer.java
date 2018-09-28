@@ -245,6 +245,14 @@ public class GenericContainer<SELF extends GenericContainer<SELF>>
         }
     }
 
+    private CreateContainerCmd attachNetworkIfPresent( CreateContainerCmd containerCmd ) {
+        TestcontainersConfiguration config = TestcontainersConfiguration.getInstance();
+        if (config.getDockerNetwork().isPresent()) {
+            containerCmd.withNetworkMode(config.getDockerNetwork().get());
+        }
+        return containerCmd;
+    }
+
     private void tryStart(Profiler profiler) {
         try {
             String dockerImageName = image.get();
@@ -252,7 +260,7 @@ public class GenericContainer<SELF extends GenericContainer<SELF>>
 
             logger().info("Creating container for image: {}", dockerImageName);
             profiler.start("Create container");
-            CreateContainerCmd createCommand = dockerClient.createContainerCmd(dockerImageName);
+            CreateContainerCmd createCommand = attachNetworkIfPresent(dockerClient.createContainerCmd(dockerImageName));
             applyConfiguration(createCommand);
 
             containerId = createCommand.exec().getId();

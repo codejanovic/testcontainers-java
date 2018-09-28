@@ -1,6 +1,7 @@
 package org.testcontainers.utility;
 
 import com.github.dockerjava.api.DockerClient;
+import com.github.dockerjava.api.command.CreateContainerCmd;
 import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.exception.DockerException;
 import com.github.dockerjava.api.exception.InternalServerErrorException;
@@ -55,27 +56,20 @@ public final class ResourceReaper {
     public static String start(String hostIpAddress, DockerClient client) {
         String ryukImage = TestcontainersConfiguration.getInstance().getRyukImage();
         DockerClientFactory.instance().checkAndPullImage(client, ryukImage);
+        String ryukContainerName = "testcontainers-ryuk-" + DockerClientFactory.SESSION_ID;
 
         List<Bind> binds = new ArrayList<>();
         binds.add(new Bind("//var/run/docker.sock", new Volume("/var/run/docker.sock")));
 
-        String ryukContainerId = client.createContainerCmd(ryukImage)
+        String ryukContainerId = attachNetworkIfPresent(client.createContainerCmd(ryukImage)
                 .withHostConfig(new HostConfig().withAutoRemove(true))
                 .withExposedPorts(new ExposedPort(8080))
                 .withPublishAllPorts(true)
-                .withName("testcontainers-ryuk-" + DockerClientFactory.SESSION_ID)
+                .withName(ryukContainerName)
                 .withLabels(Collections.singletonMap(DockerClientFactory.TESTCONTAINERS_LABEL, "true"))
-                .withBinds(binds)
+                .withBinds(binds))
                 .exec()
                 .getId();
-
-        TestcontainersConfiguration config = TestcontainersConfiguration.getInstance();
-        if (config.getRyukNetwork().isPresent()) {
-            client.connectToNetworkCmd().withContainerId(ryukContainerId).withNetworkId(config.getRyukNetwork().get()).exec();
-        }
-
-        final String ryukAlias = config.getRyukNetwork().isPresent() ? "testcontainers-ryuk-" + DockerClientFactory.SESSION_ID : hostIpAddress;
-
 
         client.startContainerCmd(ryukContainerId).exec();
 
@@ -103,7 +97,7 @@ public final class ResourceReaper {
                 () -> {
                     while (true) {
                         int index = 0;
-                        try (Socket clientSocket = new Socket(ryukAlias, ryukPort)) {
+                        try (Socket clientSocket = new Socket(hostIpAddress, ryukPort)) {
                             FilterRegistry registry = new FilterRegistry(clientSocket.getInputStream(), clientSocket.getOutputStream());
 
                             synchronized (DEATH_NOTE) {
@@ -128,7 +122,7 @@ public final class ResourceReaper {
                                 }
                             }
                         } catch (IOException e) {
-                            log.warn("Can not connect to Ryuk at {}:{}", ryukAlias, ryukPort, e);
+                            log.warn("Can not connect to Ryuk at {}:{}", hostIpAddress, ryukPort, e);
                         }
                     }
                 },
@@ -143,6 +137,14 @@ public final class ResourceReaper {
         }
 
         return ryukContainerId;
+    }
+
+    private static CreateContainerCmd attachNetworkIfPresent( CreateContainerCmd containerCmd ) {
+        TestcontainersConfiguration config = TestcontainersConfiguration.getInstance();
+        if (config.getDockerNetwork().isPresent()) {
+            containerCmd.withNetworkMode(config.getDockerNetwork().get());
+        }
+        return containerCmd;
     }
 
     public synchronized static ResourceReaper instance() {

@@ -223,8 +223,8 @@ public class DockerClientFactory {
 
     private <T> T runInsideDocker(DockerClient client, Consumer<CreateContainerCmd> createContainerCmdConsumer, BiFunction<DockerClient, String, T> block) {
         checkAndPullImage(client, TINY_IMAGE);
-        CreateContainerCmd createContainerCmd = client.createContainerCmd(TINY_IMAGE)
-                .withLabels(DEFAULT_LABELS);
+        CreateContainerCmd createContainerCmd = attachNetworkIfPresent(client.createContainerCmd(TINY_IMAGE)
+                .withLabels(DEFAULT_LABELS));
         createContainerCmdConsumer.accept(createContainerCmd);
         String id = createContainerCmd.exec().getId();
 
@@ -238,6 +238,13 @@ public class DockerClientFactory {
                 log.debug("", ignored);
             }
         }
+    }
+    private static CreateContainerCmd attachNetworkIfPresent( CreateContainerCmd containerCmd ) {
+        TestcontainersConfiguration config = TestcontainersConfiguration.getInstance();
+        if (config.getDockerNetwork().isPresent()) {
+            containerCmd.withNetworkMode(config.getDockerNetwork().get());
+        }
+        return containerCmd;
     }
 
     @VisibleForTesting
