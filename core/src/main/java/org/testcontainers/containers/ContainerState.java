@@ -7,6 +7,7 @@ import com.github.dockerjava.api.model.PortBinding;
 import com.github.dockerjava.api.model.Ports;
 import com.google.common.base.Preconditions;
 import org.testcontainers.DockerClientFactory;
+import org.testcontainers.utility.TestcontainersConfiguration;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,6 +25,9 @@ public interface ContainerState {
      * @return an IP address
      */
     default String getContainerIpAddress() {
+        if ( TestcontainersConfiguration.getInstance().getDockerNetwork().isPresent() ){
+            return getContainerInfo().getName();
+        }
         return DockerClientFactory.instance().dockerHostIpAddress();
     }
 

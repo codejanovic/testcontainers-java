@@ -75,7 +75,8 @@ public final class ResourceReaper {
 
         InspectContainerResponse inspectedContainer = client.inspectContainerCmd(ryukContainerId).exec();
 
-        Integer ryukPort = inspectedContainer.getNetworkSettings().getPorts().getBindings().values().stream()
+        Integer ryukPort = TestcontainersConfiguration.getInstance().getDockerNetwork().isPresent()? 8080:
+            inspectedContainer.getNetworkSettings().getPorts().getBindings().values().stream()
                 .flatMap(Stream::of)
                 .findFirst()
                 .map(Ports.Binding::getHostPortSpec)
