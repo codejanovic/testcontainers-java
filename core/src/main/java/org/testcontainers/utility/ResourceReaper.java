@@ -1,7 +1,6 @@
 package org.testcontainers.utility;
 
 import com.github.dockerjava.api.DockerClient;
-import com.github.dockerjava.api.command.CreateContainerCmd;
 import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.exception.DockerException;
 import com.github.dockerjava.api.exception.InternalServerErrorException;
@@ -15,6 +14,7 @@ import org.apache.http.message.BasicNameValuePair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.DockerClientFactory;
+import org.testcontainers.dockerclient.commands.WithNetworkIfPresent;
 
 import java.io.*;
 import java.net.Socket;
@@ -61,7 +61,7 @@ public final class ResourceReaper {
         List<Bind> binds = new ArrayList<>();
         binds.add(new Bind("//var/run/docker.sock", new Volume("/var/run/docker.sock")));
 
-        String ryukContainerId = attachNetworkIfPresent(client.createContainerCmd(ryukImage)
+        String ryukContainerId = new WithNetworkIfPresent().apply(client.createContainerCmd(ryukImage)
                 .withHostConfig(new HostConfig().withAutoRemove(true))
                 .withExposedPorts(new ExposedPort(8080))
                 .withPublishAllPorts(true)
@@ -84,6 +84,8 @@ public final class ResourceReaper {
 
         CountDownLatch ryukScheduledLatch = new CountDownLatch(1);
 
+        String ryukHostname = TestcontainersConfiguration.getInstance().getDockerNetwork().isPresent()? ryukContainerName: hostIpAddress;
+
         synchronized (DEATH_NOTE) {
             DEATH_NOTE.add(
                     DockerClientFactory.DEFAULT_LABELS.entrySet().stream()
@@ -97,7 +99,7 @@ public final class ResourceReaper {
                 () -> {
                     while (true) {
                         int index = 0;
-                        try (Socket clientSocket = new Socket(hostIpAddress, ryukPort)) {
+                        try (Socket clientSocket = new Socket(ryukHostname, ryukPort)) {
                             FilterRegistry registry = new FilterRegistry(clientSocket.getInputStream(), clientSocket.getOutputStream());
 
                             synchronized (DEATH_NOTE) {
@@ -122,7 +124,7 @@ public final class ResourceReaper {
                                 }
                             }
                         } catch (IOException e) {
-                            log.warn("Can not connect to Ryuk at {}:{}", hostIpAddress, ryukPort, e);
+                            log.warn("Can not connect to Ryuk at {}:{}", ryukHostname, ryukPort, e);
                         }
                     }
                 },
@@ -137,14 +139,6 @@ public final class ResourceReaper {
         }
 
         return ryukContainerId;
-    }
-
-    private static CreateContainerCmd attachNetworkIfPresent( CreateContainerCmd containerCmd ) {
-        TestcontainersConfiguration config = TestcontainersConfiguration.getInstance();
-        if (config.getDockerNetwork().isPresent()) {
-            containerCmd.withNetworkMode(config.getDockerNetwork().get());
-        }
-        return containerCmd;
     }
 
     public synchronized static ResourceReaper instance() {

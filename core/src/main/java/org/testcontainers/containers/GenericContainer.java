@@ -43,6 +43,7 @@ import org.testcontainers.containers.traits.LinkableContainer;
 import org.testcontainers.containers.wait.Wait;
 import org.testcontainers.containers.wait.WaitStrategy;
 import org.testcontainers.containers.wait.strategy.WaitStrategyTarget;
+import org.testcontainers.dockerclient.commands.WithNetworkIfPresent;
 import org.testcontainers.images.RemoteDockerImage;
 import org.testcontainers.images.builder.Transferable;
 import org.testcontainers.lifecycle.Startable;
@@ -245,14 +246,6 @@ public class GenericContainer<SELF extends GenericContainer<SELF>>
         }
     }
 
-    private CreateContainerCmd attachNetworkIfPresent( CreateContainerCmd containerCmd ) {
-        TestcontainersConfiguration config = TestcontainersConfiguration.getInstance();
-        if (config.getDockerNetwork().isPresent()) {
-            containerCmd.withNetworkMode(config.getDockerNetwork().get());
-        }
-        return containerCmd;
-    }
-
     private void tryStart(Profiler profiler) {
         try {
             String dockerImageName = image.get();
@@ -260,7 +253,7 @@ public class GenericContainer<SELF extends GenericContainer<SELF>>
 
             logger().info("Creating container for image: {}", dockerImageName);
             profiler.start("Create container");
-            CreateContainerCmd createCommand = attachNetworkIfPresent(dockerClient.createContainerCmd(dockerImageName));
+            CreateContainerCmd createCommand = new WithNetworkIfPresent().apply(dockerClient.createContainerCmd(dockerImageName));
             applyConfiguration(createCommand);
 
             containerId = createCommand.exec().getId();

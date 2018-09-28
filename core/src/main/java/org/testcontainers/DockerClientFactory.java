@@ -17,6 +17,7 @@ import org.hamcrest.Description;
 import org.rnorth.visibleassertions.VisibleAssertions;
 import org.testcontainers.dockerclient.DockerClientProviderStrategy;
 import org.testcontainers.dockerclient.DockerMachineClientProviderStrategy;
+import org.testcontainers.dockerclient.commands.WithNetworkIfPresent;
 import org.testcontainers.utility.ComparableVersion;
 import org.testcontainers.utility.MountableFile;
 import org.testcontainers.utility.ResourceReaper;
@@ -223,7 +224,7 @@ public class DockerClientFactory {
 
     private <T> T runInsideDocker(DockerClient client, Consumer<CreateContainerCmd> createContainerCmdConsumer, BiFunction<DockerClient, String, T> block) {
         checkAndPullImage(client, TINY_IMAGE);
-        CreateContainerCmd createContainerCmd = attachNetworkIfPresent(client.createContainerCmd(TINY_IMAGE)
+        CreateContainerCmd createContainerCmd = new WithNetworkIfPresent().apply(client.createContainerCmd(TINY_IMAGE)
                 .withLabels(DEFAULT_LABELS));
         createContainerCmdConsumer.accept(createContainerCmd);
         String id = createContainerCmd.exec().getId();
@@ -238,13 +239,6 @@ public class DockerClientFactory {
                 log.debug("", ignored);
             }
         }
-    }
-    private static CreateContainerCmd attachNetworkIfPresent( CreateContainerCmd containerCmd ) {
-        TestcontainersConfiguration config = TestcontainersConfiguration.getInstance();
-        if (config.getDockerNetwork().isPresent()) {
-            containerCmd.withNetworkMode(config.getDockerNetwork().get());
-        }
-        return containerCmd;
     }
 
     @VisibleForTesting
