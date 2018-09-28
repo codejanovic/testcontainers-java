@@ -26,7 +26,7 @@ public interface ContainerState {
      */
     default String getContainerIpAddress() {
         if ( TestcontainersConfiguration.getInstance().getDockerNetwork().isPresent() ){
-            return getContainerInfo().getName();
+            return getContainerInfo().getName().substring(1, getContainerInfo().getName().length());
         }
         return DockerClientFactory.instance().dockerHostIpAddress();
     }
