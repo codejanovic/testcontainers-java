@@ -1,17 +1,11 @@
 package org.testcontainers.utility;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.exception.DockerException;
 import com.github.dockerjava.api.exception.InternalServerErrorException;
 import com.github.dockerjava.api.exception.NotFoundException;
-import com.github.dockerjava.api.model.Bind;
-import com.github.dockerjava.api.model.ExposedPort;
-import com.github.dockerjava.api.model.HostConfig;
-import com.github.dockerjava.api.model.Network;
-import com.github.dockerjava.api.model.Ports;
-import com.github.dockerjava.api.model.Volume;
+import com.github.dockerjava.api.model.*;
 import com.google.common.annotations.VisibleForTesting;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -21,18 +15,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.DockerClientFactory;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
+import java.io.*;
 import java.net.Socket;
 import java.util.AbstractMap.SimpleEntry;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -83,6 +69,14 @@ public final class ResourceReaper {
                 .exec()
                 .getId();
 
+        TestcontainersConfiguration config = TestcontainersConfiguration.getInstance();
+        if (config.getRyukNetwork().isPresent()) {
+            client.connectToNetworkCmd().withContainerId(ryukContainerId).withNetworkId(config.getRyukNetwork().get()).exec();
+        }
+
+        final String ryukAlias = config.getRyukNetwork().isPresent() ? "testcontainers-ryuk-" + DockerClientFactory.SESSION_ID : hostIpAddress;
+
+
         client.startContainerCmd(ryukContainerId).exec();
 
         InspectContainerResponse inspectedContainer = client.inspectContainerCmd(ryukContainerId).exec();
@@ -109,7 +103,7 @@ public final class ResourceReaper {
                 () -> {
                     while (true) {
                         int index = 0;
-                        try(Socket clientSocket = new Socket(hostIpAddress, ryukPort)) {
+                        try (Socket clientSocket = new Socket(ryukAlias, ryukPort)) {
                             FilterRegistry registry = new FilterRegistry(clientSocket.getInputStream(), clientSocket.getOutputStream());
 
                             synchronized (DEATH_NOTE) {
@@ -134,7 +128,7 @@ public final class ResourceReaper {
                                 }
                             }
                         } catch (IOException e) {
-                            log.warn("Can not connect to Ryuk at {}:{}", hostIpAddress, ryukPort, e);
+                            log.warn("Can not connect to Ryuk at {}:{}", ryukAlias, ryukPort, e);
                         }
                     }
                 },

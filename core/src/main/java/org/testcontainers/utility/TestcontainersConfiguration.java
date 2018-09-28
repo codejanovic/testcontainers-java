@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.io.*;
 import java.net.MalformedURLException;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.stream.Stream;
 
@@ -56,6 +57,10 @@ public class TestcontainersConfiguration {
 
     public Integer getRyukTimeout() {
         return Integer.parseInt((String) properties.getOrDefault("ryuk.container.timeout", "30"));
+    }
+
+    public Optional<String> getRyukNetwork() {
+        return Optional.ofNullable((String) properties.getOrDefault("ryuk.container.network", null));
     }
 
     public String getKafkaImage() {
