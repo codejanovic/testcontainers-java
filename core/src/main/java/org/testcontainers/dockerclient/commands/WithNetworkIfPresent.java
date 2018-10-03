@@ -1,10 +1,9 @@
 package org.testcontainers.dockerclient.commands;
 
-import java.util.function.Function;
-
+import com.github.dockerjava.api.command.CreateContainerCmd;
 import org.testcontainers.utility.TestcontainersConfiguration;
 
-import com.github.dockerjava.api.command.CreateContainerCmd;
+import java.util.function.Function;
 
 
 public class WithNetworkIfPresent implements Function<CreateContainerCmd, CreateContainerCmd> {
@@ -12,7 +11,11 @@ public class WithNetworkIfPresent implements Function<CreateContainerCmd, Create
     @Override
     public CreateContainerCmd apply( CreateContainerCmd createContainerCmd ) {
         final TestcontainersConfiguration config = TestcontainersConfiguration.getInstance();
-        config.getDockerNetwork().ifPresent(createContainerCmd::withNetworkMode);
+        if (config.getDockerNetwork().isPresent()) {
+            final String network = config.getDockerNetwork().get();
+            createContainerCmd.withNetworkMode(network);
+        }
         return createContainerCmd;
     }
+
 }
